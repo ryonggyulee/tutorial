@@ -1,5 +1,6 @@
 """Run the tutorial SIESTA input and check completion."""
 import argparse
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -14,8 +15,19 @@ d = a.directory.resolve()
 if (d / 'stdout.txt').exists():
     raise FileExistsError('Use a fresh run directory; stdout.txt already exists.')
 started = time.monotonic()
+# The tutorial builds SIESTA with gfortran. Flush its stdout/stderr immediately.
+env = dict(os.environ, GFORTRAN_UNBUFFERED_PRECONNECTED='1')
 with (d / 'RUN.fdf').open() as inp, (d / 'stdout.txt').open('w') as out, (d / 'stderr.txt').open('w') as err:
-    result = subprocess.run([str(a.siesta.resolve())], stdin=inp, stdout=out, stderr=err, cwd=d)
+    with subprocess.Popen(
+        [str(a.siesta.resolve())], stdin=inp, stdout=subprocess.PIPE,
+        stderr=err, cwd=d, env=env, text=True, errors='replace', bufsize=1,
+    ) as result:
+        for line in result.stdout:
+            out.write(line)
+            out.flush()
+            if re.match(r'^\s*(?:scf:|iscf\b)', line):
+                print(line, end='', flush=True)
+        result.wait()
 log = (d / 'stdout.txt').read_text(errors='replace')
 if result.returncode or 'Job completed' not in log:
     print(log[-5000:])
@@ -27,7 +39,7 @@ if a.non_scf:
 else:
     assert re.search(r'SCF cycle converged', log, re.I), 'Reference SCF did not converge.'
     assert 'SCF_NOT_CONV' not in log, 'Reference SCF failed to converge.'
-for name in ('Molecular.RHO', 'Molecular.bands', 'Molecular.EIG', 'Molecular.FA'):
+for name in ('Molecular.RHO', 'Molecular.DRHO', 'Molecular.bands', 'Molecular.EIG', 'Molecular.FA'):
     assert (d / name).is_file() and (d / name).stat().st_size > 0, name
 if not a.non_scf:
     for name in ('Molecular.IOCH', 'rhoatom', 'rhoover'):

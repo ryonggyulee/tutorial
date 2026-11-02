@@ -1,4 +1,41 @@
-%include common.fdf
+SystemName Polymer
+SystemLabel Molecular
+%include STRUCT.fdf
+
+PAO.BasisSize DZP
+PAO.EnergyShift 30 meV
+XC.functional GGA
+XC.authors PBE
+
+%block kgrid_Monkhorst_Pack
+ 1 0 0 0.0
+ 0 1 0 0.0
+ 0 0 8 0.0
+%endblock kgrid_Monkhorst_Pack
+
+# Preserve a 0.25 Ang grid for the pretrained model.
+%block MeshSizes
+ 80 80 40
+%endblock MeshSizes
+
+Diag.ParallelOverK F
+NeglNonOverlapInt F
+DM.MixingWeight 0.25
+DM.NumberPulay 5
+DM.UseSaveDM F
+MD.NumCGsteps 0
+WriteForces T
+SaveRho T
+SaveDeltaRho T
+SaveIonicCharge T
+
+# X denotes the zone boundary along the polymer axis (z).
+BandLinesScale ReciprocalLatticeVectors
+%block BandLines
+ 1  0.0 0.0 0.0 Gamma
+ 60 0.0 0.0 0.5 X
+%endblock BandLines
+
+# SCF control
 MaxSCFIterations 300
 SCF.MustConverge T
-SaveDeltaRho T

@@ -2,10 +2,8 @@ SystemName Polymer
 SystemLabel Molecular
 %include STRUCT.fdf
 
-PAO.BasisType split
 PAO.BasisSize DZP
 PAO.EnergyShift 30 meV
-PAO.SplitNorm 0.15
 XC.functional GGA
 XC.authors PBE
 
@@ -19,20 +17,16 @@ XC.authors PBE
 %block MeshSizes
  80 80 40
 %endblock MeshSizes
-MeshCutoff 80 Ry
 
-SolutionMethod Diagon
-ElectronicTemperature 300 K
 Diag.ParallelOverK F
 NeglNonOverlapInt F
 DM.MixingWeight 0.25
 DM.NumberPulay 5
-DM.Tolerance 1.d-4
 DM.UseSaveDM F
-MD.TypeOfRun CG
 MD.NumCGsteps 0
 WriteForces T
 SaveRho T
+SaveDeltaRho T
 SaveIonicCharge T
 
 # X denotes the zone boundary along the polymer axis (z).
@@ -41,3 +35,9 @@ BandLinesScale ReciprocalLatticeVectors
  1  0.0 0.0 0.0 Gamma
  60 0.0 0.0 0.5 X
 %endblock BandLines
+
+# SCF control
+SCF.Read.Charge T
+MaxSCFIterations 1
+SCF.Mix.First F
+SCF.MustConverge F
