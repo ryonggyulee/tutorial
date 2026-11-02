@@ -20,7 +20,7 @@ log = (d / 'stdout.txt').read_text(errors='replace')
 if result.returncode or 'Job completed' not in log:
     print(log[-5000:])
     print((d / 'stderr.txt').read_text(errors='replace')[-3000:])
-    raise RuntimeError('SIESTA did not complete. Inspect stdout.txt and stderr.txt.')
+    raise RuntimeError('SIESTA did not complete. Check stdout.txt and stderr.txt.')
 iterations = len(re.findall(r'^\s*scf:', log, flags=re.M))
 if a.non_scf:
     assert iterations == 1, 'Expected exactly one SCF iteration.'
