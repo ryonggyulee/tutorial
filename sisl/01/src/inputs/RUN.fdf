@@ -1,0 +1,30 @@
+SystemName BN matrix tutorial
+SystemLabel BN
+%include STRUCT.fdf
+
+XC.functional LDA
+XC.authors CA
+PAO.BasisSize SZP
+PAO.EnergyShift 0.02 Ry
+MeshCutoff 150 Ry
+Spin non-polarized
+SolutionMethod diagon
+ElectronicTemperature 100 K
+
+%block kgrid.MonkhorstPack
+ 6 0 0 0.0
+ 0 6 0 0.0
+ 0 0 2 0.0
+%endblock kgrid.MonkhorstPack
+
+MaxSCFIterations 150
+DM.MixingWeight 0.1
+DM.NumberPulay 5
+DM.Tolerance 1.d-5
+DM.UseSaveDM false
+MD.NumCGsteps 0
+
+SaveHS true
+Write.DM true
+SaveRho true
+WriteIonXML true
