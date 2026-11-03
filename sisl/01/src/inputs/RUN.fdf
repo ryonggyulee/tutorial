@@ -26,5 +26,4 @@ MD.NumCGsteps 0
 
 SaveHS true
 Write.DM true
-SaveRho true
 WriteIonXML true
