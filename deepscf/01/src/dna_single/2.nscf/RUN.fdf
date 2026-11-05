@@ -1,0 +1,39 @@
+SystemName DNA_single
+SystemLabel dna_single
+%include STRUCT.fdf
+
+PAO.BasisType split
+PAO.BasisSize DZP
+PAO.EnergyShift 30 meV
+PAO.SplitNorm 0.15
+XC.functional GGA
+XC.authors PBE
+
+%block kgrid_Monkhorst_Pack
+ 1 0 0 0.0
+ 0 1 0 0.0
+ 0 0 3 0.0
+%endblock kgrid_Monkhorst_Pack
+
+# Preserve the pretrained model's 0.25 Ang grid spacing.
+%block MeshSizes
+ 160 160 128
+%endblock MeshSizes
+
+SolutionMethod Diagon
+Diag.ParallelOverK F
+NeglNonOverlapInt F
+ElectronicTemperature 300 K
+DM.MixingWeight 0.05
+DM.NumberPulay 20
+DM.Tolerance 1.d-4
+DM.UseSaveDM F
+MaxSCFIterations 1
+SCF.MustConverge F
+MD.NumCGsteps 0
+
+SaveRho T
+SaveIonicCharge T
+
+SCF.Read.Charge T
+SCF.Mix.First F

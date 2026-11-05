@@ -1,4 +1,4 @@
-"""Small plotting helpers for the periodic-polymer tutorial."""
+"""Plotting helpers for the polymer and DNA examples."""
 from pathlib import Path
 import re
 import numpy as np
@@ -160,5 +160,94 @@ def plot_forces(initial, ml, scf):
         ax.set_yscale('symlog', linthresh=1e-3)
         ax.legend()
         ax.set_xlim(1, len(ref))
+    plt.show()
+    return fig
+
+
+def plot_density_slice(ml, scf, y=20.0):
+    """Compare one x-z slice; report the relative L1 error on the full 3D grid."""
+    ref, predicted = density(scf), density(ml)
+    assert predicted.shape == ref.shape and np.allclose(predicted.cell, ref.cell)
+    lengths = np.diag(ref.cell)
+    assert np.allclose(ref.cell, np.diag(lengths))
+    if not 0 <= y < lengths[1]:
+        raise ValueError('y must lie inside the cell.')
+    index = min(int(np.rint(y / lengths[1] * ref.shape[1])), ref.shape[1] - 1)
+    position = index * lengths[1] / ref.shape[1]
+    slices = [predicted.grid[:, index, :], ref.grid[:, index, :]]
+    vmax = max(values.max() for values in slices)
+    x = np.arange(ref.shape[0]) * lengths[0] / ref.shape[0]
+    z = np.arange(ref.shape[2]) * lengths[2] / ref.shape[2]
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4), sharex=True, sharey=True,
+                             constrained_layout=True)
+    for ax, title, values in zip(axes, ('DeepSCF', 'SCF'), slices):
+        im = ax.pcolormesh(x, z, values.T, shading='nearest', cmap='viridis', vmin=0, vmax=vmax)
+        ax.set(xlabel='x (Å)', ylabel='z (Å)', title=title,
+               xlim=(0, lengths[0]), ylim=(0, lengths[2]), aspect='equal')
+    fig.suptitle(f'Electron density at y = {position:.2f} Å')
+    fig.colorbar(im, ax=axes, label=r'$\rho$ (e / $\mathrm{\AA}^3$)', shrink=0.85)
+    error = 100 * np.abs(predicted.grid - ref.grid).sum(dtype=np.float64) / ref.grid.sum(dtype=np.float64)
+    print('DeepSCF density error (full 3D grid): %.6f %%' % error)
+    plt.show()
+    return fig
+
+
+def plot_density_error(ml, scf, structure, isovalue=0.05):
+    """Show signed density-error isosurfaces on the original 3D grid."""
+    import sisl.viz
+
+    diff, ref = density(ml), density(scf)
+    assert diff.shape == ref.shape and np.allclose(diff.cell, ref.cell)
+    if isovalue <= 0:
+        raise ValueError('isovalue must be positive.')
+    diff.grid -= ref.grid
+    geometry = sisl.get_sile(str(structure)).read_geometry()
+    diff.set_geometry(geometry)
+    levels = [
+        {'val': isovalue, 'color': 'orange', 'opacity': 0.6, 'name': 'DeepSCF > SCF'},
+        {'val': -isovalue, 'color': 'royalblue', 'opacity': 0.6, 'name': 'DeepSCF < SCF'},
+    ]
+    levels = [level for level in levels if diff.grid.min() < level['val'] < diff.grid.max()]
+    if levels:
+        fig = diff.plot(axes='xyz', interp=(1, 1, 1), smooth=True, isos=levels,
+                        plot_geom=True, show_cell='box', backend='plotly')
+    else:
+        print('No error isosurface at this threshold; decrease isovalue to inspect smaller errors.')
+        fig = geometry.plot(axes='xyz', show_cell='box', backend='plotly')
+    fig.update_layout(title='Density error: DeepSCF − SCF')
+    fig.show()
+    return fig
+
+
+def plot_dos(ml, scf, label='dna_single', energy_range=(-8, 5), sigma=0.10):
+    """Compare nonmagnetic DOS with k weights and a common SCF Fermi zero."""
+    from sisl.physics.electron import DOS
+    from sisl.physics.distribution import get_distribution
+
+    reference = sisl.get_sile(str(Path(scf) / (label + '.EIG')))
+    zero = reference.read_fermi_level()
+    k_ref, w_ref = sisl.get_sile(str(Path(scf) / (label + '.KP'))).read_data()
+    shape_ref = reference.read_data().shape
+    energy = np.linspace(*energy_range, 1301)
+    distribution = get_distribution('gaussian', smearing=sigma)
+    fig, ax = plt.subplots(figsize=(7, 4), constrained_layout=True)
+    for title, directory, color, style in [('SCF', scf, 'black', '-'),
+                                            ('DeepSCF single-shot', ml, 'tab:red', '--')]:
+        eig_reader = sisl.get_sile(str(Path(directory) / (label + '.EIG')))
+        # sisl shifts each EIG to its own Ef; restore before using the common zero.
+        eigenvalues = eig_reader.read_data() + eig_reader.read_fermi_level() - zero
+        k, weights = sisl.get_sile(str(Path(directory) / (label + '.KP'))).read_data()
+        assert eigenvalues.shape == shape_ref and eigenvalues.shape[0] == 1
+        assert np.isfinite(eigenvalues).all() and len(weights) == eigenvalues.shape[1]
+        assert np.allclose(k, k_ref) and np.allclose(weights, w_ref)
+        assert np.isclose(weights.sum(), 1) and np.all(weights >= 0)
+        # Each nonmagnetic spatial orbital represents two spin states.
+        values = 2 * sum(w * DOS(energy, eig, distribution=distribution)
+                         for w, eig in zip(weights, eigenvalues[0]))
+        ax.plot(energy, values, color=color, ls=style, label=title)
+    ax.axvline(0, color='0.6', lw=0.5)
+    ax.set(xlabel=r'$E-E_F^{\mathrm{SCF}}$ (eV)', ylabel='DOS (states/eV/cell)',
+           xlim=energy_range)
+    ax.legend()
     plt.show()
     return fig

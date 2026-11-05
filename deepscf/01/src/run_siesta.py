@@ -10,6 +10,8 @@ p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('directory', type=Path)
 p.add_argument('--siesta', type=Path, required=True)
 p.add_argument('--non-scf', action='store_true')
+p.add_argument('--label', default='Molecular')
+p.add_argument('--dos', action='store_true', help='Check EIG/KP outputs instead of polymer bands and deformation density.')
 a = p.parse_args()
 d = a.directory.resolve()
 if (d / 'stdout.txt').exists():
@@ -39,10 +41,11 @@ if a.non_scf:
 else:
     assert re.search(r'SCF cycle converged', log, re.I), 'Reference SCF did not converge.'
     assert 'SCF_NOT_CONV' not in log, 'Reference SCF failed to converge.'
-for name in ('Molecular.RHO', 'Molecular.DRHO', 'Molecular.bands', 'Molecular.EIG', 'Molecular.FA'):
+extensions = ('RHO', 'EIG', 'KP') if a.dos else ('RHO', 'DRHO', 'bands', 'EIG', 'FA')
+for name in (a.label + '.' + ext for ext in extensions):
     assert (d / name).is_file() and (d / name).stat().st_size > 0, name
 if not a.non_scf:
-    for name in ('Molecular.IOCH', 'rhoatom', 'rhoover'):
+    for name in (a.label + '.IOCH', 'rhoatom', 'rhoover'):
         assert (d / name).is_file() and (d / name).stat().st_size > 0, name
 print(f'Completed: {iterations} SCF iteration(s), {time.monotonic()-started:.1f} s')
 print('Log:', d / 'stdout.txt')
