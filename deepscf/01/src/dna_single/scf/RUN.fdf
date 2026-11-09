@@ -1,5 +1,5 @@
 SystemName DNA_single
-SystemLabel dna_single
+SystemLabel Molecular
 %include STRUCT.fdf
 
 PAO.BasisType split

@@ -13,7 +13,6 @@ p.add_argument('project', type=Path)
 p.add_argument('work', type=Path)
 p.add_argument('--case', default='polymer')
 p.add_argument('--label', default='Molecular')
-p.add_argument('--prepare', action='store_true', help='Assemble normalized inputs from the SCF grids.')
 a = p.parse_args()
 project, work = a.project.resolve(), a.work.resolve()
 sys.path.insert(0, str(project))
@@ -32,18 +31,6 @@ dataset = work / 'dataset' / (a.case + '.h5')
 cell, mesh, reference = readGrid(str(scf / (a.label + '.RHO')))
 assert reference.shape == (1, *mesh)
 assert np.all(mesh % 8 == 0)
-if a.prepare:
-    features = []
-    for i, name in enumerate((a.label + '.IOCH', 'rhoatom', 'rhoover'), start=2):
-        c, m, values = readGrid(str(scf / name))
-        assert np.allclose(c, cell) and np.array_equal(m, mesh)
-        assert values.shape == reference.shape and np.isfinite(values).all()
-        features.append((values[0] - scale['mean%d' % i]) / scale['std%d' % i])
-    dataset.parent.mkdir(parents=True, exist_ok=True)
-    with h5py.File(str(dataset), 'w') as f:
-        f.create_dataset('feature', data=np.stack(features))
-        f.create_dataset('target', data=reference[0])
-    del features, values
 with h5py.File(str(dataset), 'r') as f:
     feature, target = f['feature'][:], f['target'][:]
 assert feature.shape == (3, *mesh) and target.shape == tuple(mesh)
